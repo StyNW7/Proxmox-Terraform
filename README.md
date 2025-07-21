@@ -1,7 +1,3 @@
-# Proxmox Terraform
-
----
-
 # 🛠️ Proxmox-Terraform
 
 **Proxmox-Terraform** adalah proyek otomatisasi infrastruktur menggunakan **Terraform** untuk membuat dan mengelola virtual machine (VM) di **Proxmox VE**, serta dukungan integrasi dengan **Ansible** untuk provisioning dan konfigurasi lebih lanjut.
