@@ -3,12 +3,10 @@
 # Proxmox API Configuration for Load Balancer (192.168.2.10)
 proxmox_lb_api_url = "https://192.168.2.10:8006/api2/json"
 proxmox_lb_api_token_id = "root@pam!ansi-lb"
-proxmox_lb_api_token_secret = "10889e22-8806-4298-97eb-ed22f8d4ca84"
 
 # Proxmox API Configuration for Worker Nodes (192.168.2.11)
 proxmox_worker_api_url = "https://192.168.2.11:8006/api2/json"
 proxmox_worker_api_token_id = "root@pam!ansi-work"
-proxmox_worker_api_token_secret = "178dcd5f-6b74-4428-92af-0ccb177063c4"
 
 # Cloud-init Configuration
 ci_user = "root"
