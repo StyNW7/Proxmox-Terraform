@@ -1,0 +1,45 @@
+---
+- name: Kubernetes Master Node Setup
+  hosts: masters
+  become: yes
+  vars_files:
+    - group_vars/all.yml
+  roles:
+    - docker
+    - kubeadm
+  tasks:
+    - name: Initialize Kubernetes master
+      command: kubeadm init --pod-network-cidr={{ pod_network_cidr }}
+      args:
+        creates: /etc/kubernetes/admin.conf
+      register: kubeadm_init
+
+    - name: Create .kube directory
+      ansible.builtin.file:
+        path: /root/.kube
+        state: directory
+        mode: '0700'
+
+    - name: Copy kube config
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /root/.kube/config
+        remote_src: yes
+
+    - name: Install Calico CNI
+      ansible.builtin.shell: |
+        kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+      args:
+        creates: /etc/cni/net.d/calico-kubeconfig
+
+    - name: Get kubeadm join command
+      ansible.builtin.shell: |
+        kubeadm token create --print-join-command
+      register: join_cmd
+      changed_when: false
+
+    - name: Set join command fact
+      set_fact:
+        k8s_join_cmd: "{{ join_cmd.stdout }}"
+      delegate_to: localhost
+      run_once: true

@@ -1,0 +1,15 @@
+---
+- name: Join Kubernetes Worker Nodes to Cluster
+  hosts: workers
+  become: yes
+  vars_files:
+    - group_vars/all.yml
+  tasks:
+    - name: Wait for join command from master
+      pause:
+        seconds: 30
+
+    - name: Join node to cluster
+      command: "{{ hostvars[groups['masters'][0]].k8s_join_cmd }} --ignore-preflight-errors=all"
+      args:
+        creates: /etc/kubernetes/kubelet.conf

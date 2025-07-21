@@ -164,8 +164,14 @@ EOT
 # FIXED: Menjalankan Ansible playbook setelah inventory selesai dibuat
 resource "null_resource" "ansible" {
   provisioner "local-exec" {
-    command = "sleep 180; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini node-exporter.yml -u ${var.ci_user} --private-key=${var.ci_ssh_private_key}"
+    command = <<-EOT
+      sleep 180
+      ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini node-exporter.yml -u ${var.ci_user} --private-key=${var.ci_ssh_private_key}
+      ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini install-software.yml -u ${var.ci_user} --private-key=${var.ci_ssh_private_key}
+    EOT
   }
+
+  #TODO : ansible buat ngeconfig masing2 kube blm dipanggil
 
   depends_on = [
     local_file.ansible_inventory  # Ganti dari null_resource.create_ansible_inventory

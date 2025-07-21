@@ -1,0 +1,50 @@
+- name: Install Docker and kubectl on VMs
+  hosts: all
+  become: true
+  tasks:
+
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"  # For Debian-based systems (like Ubuntu)
+
+    - name: Install Docker (RHEL/CentOS)
+      yum:
+        name: docker
+        state: present
+      when: ansible_os_family == "RedHat"  # For RedHat/CentOS systems
+
+    - name: Ensure Docker service is started and enabled
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add the Kubernetes APT repository (Debian)
+      apt_repository:
+        repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+        state: present
+        filename: "kubernetes"
+
+    - name: Install kubectl
+      apt:
+        name: kubectl
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install kubectl (RHEL/CentOS)
+      yum:
+        name: kubectl
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Ensure kubectl is installed
+      command: kubectl version --client
+      register: kubectl_version
+      failed_when: kubectl_version.rc != 0
+
+    - name: Verify installation of Docker and kubectl
+      debug:
+        msg: "Docker and kubectl are successfully installed."
