@@ -1,14 +1,226 @@
+# ---
+
+
+# - name: Setup HA Control Plane - Upload Certificates
+#   hosts: master-node[0]  # First master node only
+#   tags: upload-certs
+#   tasks:
+
+#     - name: Upload certificates for HA setup
+#       command: kubeadm init phase upload-certs --upload-certs
+#       register: upload_certs_result
+
+#     - name: Extract certificate key
+#       set_fact:
+#         certificate_key: "{{ upload_certs_result.stdout_lines[-1] | trim }}"
+
+#     - name: Display certificate key
+#       debug:
+#         msg: "Certificate key: {{ certificate_key }}"
+
+#     - name: Generate control plane join command
+#       command: kubeadm token create --print-join-command
+#       register: join_command_result
+
+#     - name: Set base join command
+#       set_fact:
+#         base_join_command: "{{ join_command_result.stdout }}"
+
+#     - name: Create full control plane join command
+#       set_fact:
+#         control_plane_join_command: "{{ base_join_command }} --control-plane --certificate-key {{ certificate_key }}"
+
+#     - name: Display control plane join command
+#       debug:
+#         msg: "Control plane join command: {{ control_plane_join_command }}"
+
+#     - name: Save control plane join command to file
+#       copy:
+#         content: "{{ control_plane_join_command }}"
+#         dest: /tmp/control_plane_join_command.txt
+
+#     - name: Fetch control plane join command to local machine
+#       fetch:
+#         src: /tmp/control_plane_join_command.txt
+#         dest: /tmp/control_plane_join_command.txt
+#         flat: yes
+
+# - name: Join Additional Control Plane Nodes
+#   hosts: master-node[1:]  # All master nodes except the first one
+#   become: yes
+#   tags: join-control-plane
+#   tasks:
+#     - name: Copy control plane join command to target nodes
+#       copy:
+#         src: /tmp/control_plane_join_command.txt
+#         dest: /tmp/control_plane_join_command.txt
+
+#     - name: Read control plane join command
+#       slurp:
+#         src: /tmp/control_plane_join_command.txt
+#       register: join_command_file
+
+#     - name: Set join command variable
+#       set_fact:
+#         join_command: "{{ join_command_file.content | b64decode | trim }}"
+
+#     - name: Display join command being executed
+#       debug:
+#         msg: "Executing: {{ join_command }}"
+
+#     - name: Join control plane
+#       shell: "{{ join_command }}"
+#       register: join_result
+#       ignore_errors: yes
+
+#     - name: Display join result
+#       debug:
+#         var: join_result
+
+#     - name: Check if join was successful
+#       fail:
+#         msg: "Failed to join control plane: {{ join_result.stderr }}"
+#       when: join_result.rc != 0 and 'already exists' not in join_result.stderr
+
+# - name: Configure kubectl on Additional Control Plane Nodes
+#   hosts: master-node[1:]  # All master nodes except the first one
+#   tags: configure-kubectl
+#   tasks:
+#     - name: Create .kube directory
+#       become: yes
+#       file:
+#         path: /root/.kube
+#         state: directory
+#         mode: '0755'
+
+#     - name: Copy admin.conf to .kube/config
+#       become: yes
+#       copy:
+#         src: /etc/kubernetes/admin.conf
+#         dest: /root/.kube/config
+#         remote_src: yes
+#         owner: root
+#         group: root
+#         mode: '0644'
+
+#     - name: Test kubectl access
+#       command: kubectl cluster-info
+#       register: cluster_info_result
+
+#     - name: Display cluster info
+#       debug:
+#         var: cluster_info_result.stdout_lines
+
+# - name: Verify HA Control Plane Setup
+#   hosts: master-node
+#   tags: verify-ha
+#   tasks:
+#     - name: Get control plane nodes
+#       command: kubectl get nodes -l node-role.kubernetes.io/control-plane -o wide
+#       register: control_plane_nodes
+#       run_once: true
+
+#     - name: Display control plane nodes
+#       debug:
+#         var: control_plane_nodes.stdout_lines
+#       run_once: true
+
+#     - name: Get etcd pods
+#       command: kubectl get pods -n kube-system -l component=etcd -o wide
+#       register: etcd_pods
+#       run_once: true
+
+#     - name: Display etcd pods
+#       debug:
+#         var: etcd_pods.stdout_lines
+#       run_once: true
+
+#     - name: Check cluster health
+#       command: kubectl get componentstatuses
+#       register: component_status
+#       run_once: true
+#       ignore_errors: yes
+
+#     - name: Display component status
+#       debug:
+#         var: component_status.stdout_lines
+#       run_once: true
+#       when: component_status.rc == 0
+
+#     - name: Verify all nodes are ready
+#       command: kubectl get nodes
+#       register: all_nodes
+#       run_once: true
+
+#     - name: Display all nodes status
+#       debug:
+#         var: all_nodes.stdout_lines
+#       run_once: true
+
+#     - name: Check kube-system pods
+#       command: kubectl get pods -n kube-system
+#       register: system_pods
+#       run_once: true
+
+#     - name: Display system pods
+#       debug:
+#         var: system_pods.stdout_lines
+#       run_once: true
+
+# - name: Clean up temporary files
+#   hosts: master-node
+#   tags: cleanup
+#   tasks:
+#     - name: Remove temporary join command file
+#       file:
+#         path: /tmp/control_plane_join_command.txt
+#         state: absent
+
+#     - name: Remove local temporary file
+#       local_action:
+#         module: file
+#         path: /tmp/control_plane_join_command.txt
+#         state: absent
+#       run_once: true
+
+
+
+
+
 ---
 
-
-- name: Setup HA Control Plane - Upload Certificates
-  hosts: master-node[0]  # First master node only
-  tags: upload-certs
+- name: Reset Kubernetes on Additional Control Plane Nodes
+  hosts: master-node[1:]  # All master nodes except the first one
+  become: yes
+  tags: reset-nodes
   tasks:
+    - name: Check if kubeadm is available
+      command: which kubeadm
+      register: kubeadm_check
+      ignore_errors: yes
 
     - name: Reset kubeadm on control plane nodes
       command: kubeadm reset --force
-      when: inventory_hostname in groups['control_plane']
+      when: kubeadm_check.rc == 0
+      ignore_errors: yes
+
+    - name: Stop kubelet service
+      systemd:
+        name: kubelet
+        state: stopped
+      ignore_errors: yes
+
+    - name: Stop container runtime (containerd)
+      systemd:
+        name: containerd
+        state: stopped
+      ignore_errors: yes
+
+    - name: Stop container runtime (docker)
+      systemd:
+        name: docker
+        state: stopped
+      ignore_errors: yes
 
     - name: Clean kubernetes directories
       file:
@@ -18,10 +230,51 @@
         - /etc/kubernetes/
         - /var/lib/kubelet/
         - /var/lib/etcd/
-      when: inventory_hostname in groups['control_plane']
+        - /etc/cni/net.d/
+      ignore_errors: yes
 
-    - name: Join control plane
-      command: "{{ your_existing_join_command }}"
+    - name: Clean iptables rules
+      shell: |
+        iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+      ignore_errors: yes
+
+    - name: Remove kubernetes network interfaces
+      shell: |
+        ip link delete cni0 2>/dev/null || true
+        ip link delete flannel.1 2>/dev/null || true
+        ip link delete docker0 2>/dev/null || true
+      ignore_errors: yes
+
+    - name: Start container runtime (containerd)
+      systemd:
+        name: containerd
+        state: started
+        enabled: yes
+      ignore_errors: yes
+
+    - name: Start container runtime (docker)
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+      ignore_errors: yes
+
+    - name: Start kubelet service
+      systemd:
+        name: kubelet
+        state: started
+        enabled: yes
+      ignore_errors: yes
+
+    - name: Wait for services to stabilize
+      pause:
+        seconds: 10
+
+- name: Setup HA Control Plane - Upload Certificates
+  hosts: master-node[0]  # First master node only
+  tags: upload-certs
+  tasks:
+
     - name: Upload certificates for HA setup
       command: kubeadm init phase upload-certs --upload-certs
       register: upload_certs_result
