@@ -1,8 +1,27 @@
 ---
+
+
 - name: Setup HA Control Plane - Upload Certificates
   hosts: master-node[0]  # First master node only
   tags: upload-certs
   tasks:
+
+    - name: Reset kubeadm on control plane nodes
+      command: kubeadm reset --force
+      when: inventory_hostname in groups['control_plane']
+
+    - name: Clean kubernetes directories
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/kubernetes/
+        - /var/lib/kubelet/
+        - /var/lib/etcd/
+      when: inventory_hostname in groups['control_plane']
+
+    - name: Join control plane
+      command: "{{ your_existing_join_command }}"
     - name: Upload certificates for HA setup
       command: kubeadm init phase upload-certs --upload-certs
       register: upload_certs_result
