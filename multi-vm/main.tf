@@ -16,7 +16,7 @@ provider "proxmox" {
 
 # FIXED: Changed from proxmox_vm_qemu to proxmox_virtual_environment_vm
 resource "proxmox_virtual_environment_vm" "vm" {
-  count     = var.vm_count
+  count     = var.master_count
   vm_id     = 100 + (count.index + 1)
   name      = "k8s-master-${count.index + 1}"
   node_name = "proxmox" # di bawa datacenter
@@ -76,7 +76,7 @@ resource "proxmox_virtual_environment_vm" "vm" {
 }
 
 resource "proxmox_virtual_environment_vm" "vmw" {
-  count     = var.vm_count
+  count     = var.worker_count
   vm_id     = 200 + (count.index + 1)
   name      = "k8s-worker-${count.index + 1}"  # FIXED: Changed name to distinguish workers
   node_name = "proxmox" # di bawa datacenter
@@ -93,8 +93,14 @@ resource "proxmox_virtual_environment_vm" "vmw" {
     cores = 1  # FIXED: Reduced from 2 to 1 for hardware constraints
   }
 
+  # For masters ("vm")
   memory {
-    dedicated = 1024  # FIXED: Reduced from 4096 to 1024 for hardware constraints
+    dedicated = var.master_memory
+  }
+
+  # For workers ("vmw")
+  memory {
+    dedicated = var.worker_memory
   }
 
   agent {

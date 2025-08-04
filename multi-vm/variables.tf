@@ -41,8 +41,27 @@ variable "ci_ssh_private_key" {
 }
 
 # VM Configuration
-variable "vm_count" {
-  description = "Number of VMs to create"
+variable "master_count" {
+  description = "Number of master VMs to create"
+  type        = number
+  default     = 2
+}
+
+variable "worker_count" {
+  description = "Number of worker VMs to create"
   type        = number
   default     = 3
+}
+
+# Memory Alloc
+variable "master_memory {
+  description = "Memory for master nodes in MB"
+  type        = number
+  default     = 4096 # 4 GB
+}
+
+variable "worker_memory" {
+  description = "Memory for worker nodes in MB"
+  type        = number
+  default     = 3072 # 3 GB
 }
