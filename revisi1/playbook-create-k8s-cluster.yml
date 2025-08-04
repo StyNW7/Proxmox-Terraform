@@ -180,6 +180,10 @@
     command: kubeadm token create --print-join-command
     register: kubeadm_join_command_raw
 
+  - name: Get join command for control-plane nodes
+    command: kubeadm token create --print-join-command --certificate-key $(kubeadm init phase upload-certs --upload-certs | tail -n 1)
+    register: kubeadm_join_command_raw_control_plane
+
   - name: set join command
     set_fact:
       kubeadm_join_command: "{{ kubeadm_join_command_raw.stdout }}"
@@ -189,15 +193,21 @@
       dest: /tmp/join_command.txt
       content: "{{ kubeadm_join_command }}"
 
-  - name: Save join command to a file
+  - name: Save control-plane join command to file
     copy:
-      content: "{{ kubeadm_join_command }}"
-      dest: /tmp/join_command.txt
+      dest: /tmp/join_command_control_plane.txt
+      content: "{{ kubeadm_join_command_raw_control_plane.stdout }}"
 
   - name: Fetch join command to host
     fetch:
       src: /tmp/join_command.txt
       dest: /tmp/join_command.txt
+      flat: yes
+
+  - name: Fetch control-plane join command to host
+    fetch:
+      src: /tmp/join_command_control_plane.txt
+      dest: /tmp/join_command_control_plane.txt
       flat: yes
 
   - name: Check if kubeadm init was successful or already run
@@ -208,6 +218,19 @@
     debug:
       msg: "Kubernetes master-node already initialized, skipping."
     when: kubeadm_initialized
+
+- name: Join additional master nodes to the control-plane
+  hosts: master-node
+  become: yes
+  tags: join-master-node
+  tasks:
+  - name: Copy control-plane join command to master-node
+    copy:
+      src: /tmp/join_command_control_plane.txt
+      dest: /tmp/
+
+  - name: Join control-plane
+    shell: "cat /tmp/join_command_control_plane.txt | bash"
 
 - name: Finishing Initialization of control-plane (master-node)
   hosts: master-node
@@ -238,7 +261,6 @@
 
   - name: join cluster
     shell: "cat /tmp/join_command.txt | bash"
-
 
 - name: install cni
   hosts: master-node
