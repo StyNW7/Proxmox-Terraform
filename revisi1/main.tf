@@ -177,6 +177,60 @@ resource "proxmox_vm_qemu" "k8s-workers-subnet-4" {
   }
 }
 
+
+resource "proxmox_vm_qemu" "k8s-lb-subnet-4" {
+  count       = var.worker_count_subnet_4
+  name        = "k8s-lb-subnet4-${count.index + 1}"
+  target_node = "proxwrlb"
+  vmid        = 400 + count.index
+  clone       = "ubuntu-template"
+  full_clone  = true
+
+  ciuser    = var.ci_user
+  cipassword = var.ci_password
+  sshkeys   = file(var.ci_ssh_public_key)
+
+  agent     = 1
+  cores     = 2
+  memory    = 4096
+  os_type   = "cloud-init"
+  bootdisk  = "scsi0"
+  scsihw    = "virtio-scsi-pci"
+
+  disks {
+    ide {
+      ide0 {
+        cloudinit {
+          storage = "local"
+        }
+      }
+    }
+    scsi {
+      scsi0 {
+        disk {
+          size    = 10
+          storage = "local"
+        }
+      }
+    }
+  }
+
+  network {
+    model  = "virtio"
+    bridge = "vmbr0"
+  }
+
+  boot     = "order=scsi0"
+  ipconfig0 = "ip=192.168.4.${count.index + 60}/24,gw=192.168.4.1"
+  # ipconfig0 = "ip=dhcp"
+  
+  lifecycle {
+    ignore_changes = [ 
+      network
+    ]
+  }
+}
+
 output "vm_info" {
   value = {
     master = [
@@ -193,6 +247,13 @@ output "vm_info" {
     ],
     workers-subnet4 = [
       for vm in proxmox_vm_qemu.k8s-workers-subnet-4 : {
+        hostname = vm.name
+        ip_addr  = vm.default_ipv4_address
+      }
+    ],
+
+    lb-subnet4 = [
+      for vm in proxmox_vm_qemu.k8s-lb-subnet-4 : {
         hostname = vm.name
         ip_addr  = vm.default_ipv4_address
       }
