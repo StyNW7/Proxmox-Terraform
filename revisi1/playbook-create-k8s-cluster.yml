@@ -310,7 +310,7 @@
     #   state: absent
 #----------- end of error pertama (gagal wktu join control plane)
 
-  - name: Initialization of control-plane (master-worker)
+- name: Initialization of control-plane (master-worker)
   hosts: master-worker
   become: yes
   tags: master-node-init
