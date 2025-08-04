@@ -1,4 +1,4 @@
-ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini playbook-create-k8s-cluster.yml --tags "install-cni" -u Group-3 --private-key=$HOME/.ssh/id_rsa 
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini playbook-create-k8s-cluster.yml -u Group-3 --private-key=$HOME/.ssh/id_rsa 
 
 
 # Run Flannel fix
