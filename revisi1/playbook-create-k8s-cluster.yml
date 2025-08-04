@@ -310,8 +310,8 @@
     #   state: absent
 #----------- end of error pertama (gagal wktu join control plane)
 
-- name: Initialization of control-plane (master-worker)
-  hosts: master-worker
+- name: Initialization of control-plane (master-node)
+  hosts: master-node
   become: yes
   tags: master-node-init
   tasks:
@@ -324,7 +324,7 @@
     command: kubeadm token create --print-join-command
     register: kubeadm_join_command_raw
 
-  - name: set join command
+  - name: Set join command
     set_fact:
       kubeadm_join_command: "{{ kubeadm_join_command_raw.stdout }}"
 
@@ -343,8 +343,8 @@
     set_fact:
       kubeadm_initialized: "{{ kubeadm_init_result.rc == 0 }}"
 
-- name: Finishing Initialization of control-plane (master-worker)
-  hosts: master-worker
+- name: Finishing Initialization of control-plane (master-node)
+  hosts: master-node
   tags: master-node-init
   tasks:
   - name: Create .kube directory
@@ -360,9 +360,7 @@
     command: sudo chown {{ ansible_user }}:{{ ansible_user }} .kube/config
 
 - name: Configure worker-nodes to join
-  hosts: 
-  - worker-subnet-3
-  - worker-subnet-4
+  hosts: worker-node
   become: yes
   tags: join-worker-node
   tasks:
@@ -371,11 +369,11 @@
       src: /tmp/join_command.txt
       dest: /tmp/
 
-  - name: join cluster
+  - name: Join cluster
     shell: "cat /tmp/join_command.txt | bash"
 
-- name: install cni
-  hosts: master-worker
+- name: Install CNI
+  hosts: master-node
   tags: install-cni
   tasks:
   - name: Download Flannel manifest
