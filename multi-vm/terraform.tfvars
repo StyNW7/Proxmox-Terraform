@@ -8,4 +8,6 @@ ci_ssh_public_key = "~/.ssh/id_rsa.pub"
 ci_ssh_private_key = "~/.ssh/id_rsa"
 
 # VM Configuration
-vm_count = 3
+master_count = 2
+worker_count = 3
+
