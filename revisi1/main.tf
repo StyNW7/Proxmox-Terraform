@@ -180,10 +180,12 @@ resource "proxmox_vm_qemu" "k8s-workers-subnet-4" {
 
 output "vm_info" {
   value = {
-    master = {
-      hostname = proxmox_vm_qemu.k8s-master.name
-      ip_addr  = proxmox_vm_qemu.k8s-master.default_ipv4_address
-    },
+    master = [
+      for vm in proxmox_vm_qemu.k8s-master : {
+        hostname = vm.name
+        ip_addr  = vm.default_ipv4_address
+      }
+    ],
     workers-subnet3 = [
       for vm in proxmox_vm_qemu.k8s-workers-subnet-3 : {
         hostname = vm.name
@@ -209,7 +211,7 @@ resource "local_file" "create_ansible_inventory" {
 
   content = <<EOT
 [master-node]
-${proxmox_vm_qemu.k8s-master.default_ipv4_address}
+${join("\n", [for master in proxmox_vm_qemu.k8s-master : master.default_ipv4_address])}
 [worker-node-subnet3]
 ${join("\n", [for worker in proxmox_vm_qemu.k8s-workers-subnet-3 : worker.default_ipv4_address])}
 [worker-node-subnet4]
