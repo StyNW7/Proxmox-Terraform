@@ -195,8 +195,8 @@
 
   # - name: Save control-plane join command to file
   #   copy:
-de# st: /tmp/join_command_control_plane.txt
-      co# ntent: "{{ kubeadm_join_command_raw_control_plane.stdout }}"
+# de# st: /tmp/join_command_control_plane.txt
+#       co# ntent: "{{ kubeadm_join_command_raw_control_plane.stdout }}"
       
   # - name: Fetch join command to host
   #   fetch:
@@ -219,11 +219,11 @@ de# st: /tmp/join_command_control_plane.txt
     #   msg: "Kubernetes master-node already initialized, skipping."
     # when: kubeadm_initialized
 
-- na# me: Join additional master nodes to the control-plane
-  ho# sts: master-node
-  be# come: yes
-  ta# gs: join-master-node
-  ta# sks:
+# - na# me: Join additional master nodes to the control-plane
+#   ho# sts: master-node
+#   be# come: yes
+#   ta# gs: join-master-node
+#   ta# sks:
   - # name: Copy control-plane join command to master-node
     # copy:
     #   src: /tmp/join_command_control_plane.txt
@@ -232,11 +232,11 @@ de# st: /tmp/join_command_control_plane.txt
   - # name: Join control-plane
     # shell: "cat /tmp/join_command_control_plane.txt | bash"
 
-- na# me: Finishing Initialization of control-plane (master-node)
-  ho# sts: master-node
-  # # become: yes
-  ta# gs: master-node-init
-  ta# sks:
+# - na# me: Finishing Initialization of control-plane (master-node)
+#   ho# sts: master-node
+#   # # become: yes
+#   ta# gs: master-node-init
+#   ta# sks:
   - # name: Create .kube directory
     # file:
     #   path: ".kube"
@@ -249,11 +249,11 @@ de# st: /tmp/join_command_control_plane.txt
   - # name: Change ownership of .kube/config
     # command: sudo chown {{ ansible_user }}:{{ ansible_user }} .kube/config
 
-- na# me: Configure worker-nodes to join
-  ho# sts: worker-node
-  be# come: yes
-  ta# gs: join-worker-node
-  ta# sks:
+# - name: Configure worker-nodes to join
+#   ho# sts: worker-node
+#   be# come: yes
+#   ta# gs: join-worker-node
+#   ta# sks:
   - # name: Copy join command to worker-node
     # copy:
     #   src: /tmp/join_command.txt
@@ -262,10 +262,10 @@ de# st: /tmp/join_command_control_plane.txt
   - # name: join cluster
     # shell: "cat /tmp/join_command.txt | bash"
 
-- na# me: install cni
-  ho# sts: master-node
-  ta# gs: install-cni
-  ta# sks:
+# - na# me: install cni
+#   ho# sts: master-node
+#   ta# gs: install-cni
+#   ta# sks:
   - # name: Copy Flannel manifest to master node
     # copy:
     #   src: kube-flannel.yml
