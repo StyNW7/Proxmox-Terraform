@@ -1,5 +1,274 @@
+# # ---
+
+
+# # - name: Setup HA Control Plane - Upload Certificates
+# #   hosts: master-node[0]  # First master node only
+# #   tags: upload-certs
+# #   tasks:
+
+# #     - name: Upload certificates for HA setup
+# #       command: kubeadm init phase upload-certs --upload-certs
+# #       register: upload_certs_result
+
+# #     - name: Extract certificate key
+# #       set_fact:
+# #         certificate_key: "{{ upload_certs_result.stdout_lines[-1] | trim }}"
+
+# #     - name: Display certificate key
+# #       debug:
+# #         msg: "Certificate key: {{ certificate_key }}"
+
+# #     - name: Generate control plane join command
+# #       command: kubeadm token create --print-join-command
+# #       register: join_command_result
+
+# #     - name: Set base join command
+# #       set_fact:
+# #         base_join_command: "{{ join_command_result.stdout }}"
+
+# #     - name: Create full control plane join command
+# #       set_fact:
+# #         control_plane_join_command: "{{ base_join_command }} --control-plane --certificate-key {{ certificate_key }}"
+
+# #     - name: Display control plane join command
+# #       debug:
+# #         msg: "Control plane join command: {{ control_plane_join_command }}"
+
+# #     - name: Save control plane join command to file
+# #       copy:
+# #         content: "{{ control_plane_join_command }}"
+# #         dest: /tmp/control_plane_join_command.txt
+
+# #     - name: Fetch control plane join command to local machine
+# #       fetch:
+# #         src: /tmp/control_plane_join_command.txt
+# #         dest: /tmp/control_plane_join_command.txt
+# #         flat: yes
+
+# # - name: Join Additional Control Plane Nodes
+# #   hosts: master-node[1:]  # All master nodes except the first one
+# #   become: yes
+# #   tags: join-control-plane
+# #   tasks:
+# #     - name: Copy control plane join command to target nodes
+# #       copy:
+# #         src: /tmp/control_plane_join_command.txt
+# #         dest: /tmp/control_plane_join_command.txt
+
+# #     - name: Read control plane join command
+# #       slurp:
+# #         src: /tmp/control_plane_join_command.txt
+# #       register: join_command_file
+
+# #     - name: Set join command variable
+# #       set_fact:
+# #         join_command: "{{ join_command_file.content | b64decode | trim }}"
+
+# #     - name: Display join command being executed
+# #       debug:
+# #         msg: "Executing: {{ join_command }}"
+
+# #     - name: Join control plane
+# #       shell: "{{ join_command }}"
+# #       register: join_result
+# #       ignore_errors: yes
+
+# #     - name: Display join result
+# #       debug:
+# #         var: join_result
+
+# #     - name: Check if join was successful
+# #       fail:
+# #         msg: "Failed to join control plane: {{ join_result.stderr }}"
+# #       when: join_result.rc != 0 and 'already exists' not in join_result.stderr
+
+# # - name: Configure kubectl on Additional Control Plane Nodes
+# #   hosts: master-node[1:]  # All master nodes except the first one
+# #   tags: configure-kubectl
+# #   tasks:
+# #     - name: Create .kube directory
+# #       become: yes
+# #       file:
+# #         path: /root/.kube
+# #         state: directory
+# #         mode: '0755'
+
+# #     - name: Copy admin.conf to .kube/config
+# #       become: yes
+# #       copy:
+# #         src: /etc/kubernetes/admin.conf
+# #         dest: /root/.kube/config
+# #         remote_src: yes
+# #         owner: root
+# #         group: root
+# #         mode: '0644'
+
+# #     - name: Test kubectl access
+# #       command: kubectl cluster-info
+# #       register: cluster_info_result
+
+# #     - name: Display cluster info
+# #       debug:
+# #         var: cluster_info_result.stdout_lines
+
+# # - name: Verify HA Control Plane Setup
+# #   hosts: master-node
+# #   tags: verify-ha
+# #   tasks:
+# #     - name: Get control plane nodes
+# #       command: kubectl get nodes -l node-role.kubernetes.io/control-plane -o wide
+# #       register: control_plane_nodes
+# #       run_once: true
+
+# #     - name: Display control plane nodes
+# #       debug:
+# #         var: control_plane_nodes.stdout_lines
+# #       run_once: true
+
+# #     - name: Get etcd pods
+# #       command: kubectl get pods -n kube-system -l component=etcd -o wide
+# #       register: etcd_pods
+# #       run_once: true
+
+# #     - name: Display etcd pods
+# #       debug:
+# #         var: etcd_pods.stdout_lines
+# #       run_once: true
+
+# #     - name: Check cluster health
+# #       command: kubectl get componentstatuses
+# #       register: component_status
+# #       run_once: true
+# #       ignore_errors: yes
+
+# #     - name: Display component status
+# #       debug:
+# #         var: component_status.stdout_lines
+# #       run_once: true
+# #       when: component_status.rc == 0
+
+# #     - name: Verify all nodes are ready
+# #       command: kubectl get nodes
+# #       register: all_nodes
+# #       run_once: true
+
+# #     - name: Display all nodes status
+# #       debug:
+# #         var: all_nodes.stdout_lines
+# #       run_once: true
+
+# #     - name: Check kube-system pods
+# #       command: kubectl get pods -n kube-system
+# #       register: system_pods
+# #       run_once: true
+
+# #     - name: Display system pods
+# #       debug:
+# #         var: system_pods.stdout_lines
+# #       run_once: true
+
+# # - name: Clean up temporary files
+# #   hosts: master-node
+# #   tags: cleanup
+# #   tasks:
+# #     - name: Remove temporary join command file
+# #       file:
+# #         path: /tmp/control_plane_join_command.txt
+# #         state: absent
+
+# #     - name: Remove local temporary file
+# #       local_action:
+# #         module: file
+# #         path: /tmp/control_plane_join_command.txt
+# #         state: absent
+# #       run_once: true
+
+
+
+
+
 # ---
 
+# - name: Reset Kubernetes on Additional Control Plane Nodes
+#   hosts: master-node[1:]  # All master nodes except the first one
+#   become: yes
+#   tags: reset-nodes
+#   tasks:
+#     - name: Check if kubeadm is available
+#       command: which kubeadm
+#       register: kubeadm_check
+#       ignore_errors: yes
+
+#     - name: Reset kubeadm on control plane nodes
+#       command: kubeadm reset --force
+#       when: kubeadm_check.rc == 0
+#       ignore_errors: yes
+
+#     - name: Stop kubelet service
+#       systemd:
+#         name: kubelet
+#         state: stopped
+#       ignore_errors: yes
+
+#     - name: Stop container runtime (containerd)
+#       systemd:
+#         name: containerd
+#         state: stopped
+#       ignore_errors: yes
+
+#     - name: Stop container runtime (docker)
+#       systemd:
+#         name: docker
+#         state: stopped
+#       ignore_errors: yes
+
+#     - name: Clean kubernetes directories
+#       file:
+#         path: "{{ item }}"
+#         state: absent
+#       loop:
+#         - /etc/kubernetes/
+#         - /var/lib/kubelet/
+#         - /var/lib/etcd/
+#         - /etc/cni/net.d/
+#       ignore_errors: yes
+
+#     - name: Clean iptables rules
+#       shell: |
+#         iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+#       ignore_errors: yes
+
+#     - name: Remove kubernetes network interfaces
+#       shell: |
+#         ip link delete cni0 2>/dev/null || true
+#         ip link delete flannel.1 2>/dev/null || true
+#         ip link delete docker0 2>/dev/null || true
+#       ignore_errors: yes
+
+#     - name: Start container runtime (containerd)
+#       systemd:
+#         name: containerd
+#         state: started
+#         enabled: yes
+#       ignore_errors: yes
+
+#     - name: Start container runtime (docker)
+#       systemd:
+#         name: docker
+#         state: started
+#         enabled: yes
+#       ignore_errors: yes
+
+#     - name: Start kubelet service
+#       systemd:
+#         name: kubelet
+#         state: started
+#         enabled: yes
+#       ignore_errors: yes
+
+#     - name: Wait for services to stabilize
+#       pause:
+#         seconds: 10
 
 # - name: Setup HA Control Plane - Upload Certificates
 #   hosts: master-node[0]  # First master node only
@@ -184,13 +453,194 @@
 #       run_once: true
 
 
-
-
-
 ---
+# Kubernetes Join Remaining Nodes Playbook
+# Inventory: 
+# [master-node] 192.168.2.50 192.168.2.51
+# [worker-node] 192.168.3.50 192.168.3.51 192.168.4.50
+# [k8s-lb] 192.168.4.60
 
-- name: Reset Kubernetes on Additional Control Plane Nodes
-  hosts: master-node[1:]  # All master nodes except the first one
+- name: Generate Join Commands from First Master
+  hosts: master-node[0]  # 192.168.2.50
+  become: yes
+  tags: generate-commands
+  tasks:
+    - name: Upload certificates for HA control plane
+      command: kubeadm init phase upload-certs --upload-certs
+      register: upload_certs_result
+
+    - name: Extract certificate key
+      set_fact:
+        certificate_key: "{{ upload_certs_result.stdout_lines[-1] | trim }}"
+
+    - name: Display certificate key
+      debug:
+        msg: "Certificate key: {{ certificate_key }}"
+
+    - name: Generate base join command
+      command: kubeadm token create --print-join-command
+      register: base_join_result
+
+    - name: Set base join command
+      set_fact:
+        base_join_command: "{{ base_join_result.stdout }}"
+
+    - name: Create control plane join command
+      set_fact:
+        control_plane_join_command: "{{ base_join_command }} --control-plane --certificate-key {{ certificate_key }}"
+
+    - name: Create worker join command
+      set_fact:
+        worker_join_command: "{{ base_join_command }}"
+
+    - name: Display join commands
+      debug:
+        msg:
+          - "Control plane join: {{ control_plane_join_command }}"
+          - "Worker join: {{ worker_join_command }}"
+
+    - name: Save join commands to files
+      copy:
+        content: "{{ item.content }}"
+        dest: "{{ item.dest }}"
+      loop:
+        - { content: "{{ control_plane_join_command }}", dest: "/tmp/control_plane_join.txt" }
+        - { content: "{{ worker_join_command }}", dest: "/tmp/worker_join.txt" }
+
+    - name: Fetch join commands to local machine
+      fetch:
+        src: "{{ item }}"
+        dest: "{{ item }}"
+        flat: yes
+      loop:
+        - /tmp/control_plane_join.txt
+        - /tmp/worker_join.txt
+
+- name: Prepare Additional Nodes
+  hosts: master-node[1:],worker-node
+  become: yes
+  tags: prepare-nodes
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gpg
+        state: present
+
+    - name: Disable swap permanently
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+        replace: '# \1'
+
+    - name: Disable swap immediately
+      command: swapoff -a
+
+    - name: Load required kernel modules
+      modprobe:
+        name: "{{ item }}"
+      loop:
+        - overlay
+        - br_netfilter
+
+    - name: Make kernel modules persistent
+      copy:
+        content: |
+          overlay
+          br_netfilter
+        dest: /etc/modules-load.d/k8s.conf
+
+    - name: Set sysctl parameters for Kubernetes
+      sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: yes
+      loop:
+        - { key: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+        - { key: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+        - { key: 'net.ipv4.ip_forward', value: '1' }
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install containerd
+      apt:
+        name: containerd.io
+        state: present
+        update_cache: yes
+
+    - name: Create containerd config directory
+      file:
+        path: /etc/containerd
+        state: directory
+
+    - name: Generate containerd config
+      shell: containerd config default > /etc/containerd/config.toml
+
+    - name: Configure containerd to use systemd cgroup driver
+      replace:
+        path: /etc/containerd/config.toml
+        regexp: 'SystemdCgroup = false'
+        replace: 'SystemdCgroup = true'
+
+    - name: Restart and enable containerd
+      systemd:
+        name: containerd
+        state: restarted
+        enabled: yes
+
+    - name: Add Kubernetes GPG key
+      apt_key:
+        url: https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key
+        keyring: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        state: present
+
+    - name: Add Kubernetes repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /"
+        state: present
+        filename: kubernetes
+
+    - name: Install Kubernetes packages
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        update_cache: yes
+
+    - name: Hold Kubernetes packages
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    - name: Enable kubelet service
+      systemd:
+        name: kubelet
+        enabled: yes
+
+- name: Reset Previous Kubernetes Installation
+  hosts: master-node[1:],worker-node
   become: yes
   tags: reset-nodes
   tasks:
@@ -199,30 +649,21 @@
       register: kubeadm_check
       ignore_errors: yes
 
-    - name: Reset kubeadm on control plane nodes
+    - name: Reset kubeadm
       command: kubeadm reset --force
       when: kubeadm_check.rc == 0
       ignore_errors: yes
 
-    - name: Stop kubelet service
+    - name: Stop services
       systemd:
-        name: kubelet
+        name: "{{ item }}"
         state: stopped
+      loop:
+        - kubelet
+        - containerd
       ignore_errors: yes
 
-    - name: Stop container runtime (containerd)
-      systemd:
-        name: containerd
-        state: stopped
-      ignore_errors: yes
-
-    - name: Stop container runtime (docker)
-      systemd:
-        name: docker
-        state: stopped
-      ignore_errors: yes
-
-    - name: Clean kubernetes directories
+    - name: Clean Kubernetes directories
       file:
         path: "{{ item }}"
         state: absent
@@ -238,132 +679,69 @@
         iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
       ignore_errors: yes
 
-    - name: Remove kubernetes network interfaces
+    - name: Remove network interfaces
       shell: |
         ip link delete cni0 2>/dev/null || true
         ip link delete flannel.1 2>/dev/null || true
         ip link delete docker0 2>/dev/null || true
       ignore_errors: yes
 
-    - name: Start container runtime (containerd)
+    - name: Start services
       systemd:
-        name: containerd
+        name: "{{ item }}"
         state: started
         enabled: yes
-      ignore_errors: yes
-
-    - name: Start container runtime (docker)
-      systemd:
-        name: docker
-        state: started
-        enabled: yes
-      ignore_errors: yes
-
-    - name: Start kubelet service
-      systemd:
-        name: kubelet
-        state: started
-        enabled: yes
-      ignore_errors: yes
+      loop:
+        - containerd
+        - kubelet
 
     - name: Wait for services to stabilize
       pause:
         seconds: 10
 
-- name: Setup HA Control Plane - Upload Certificates
-  hosts: master-node[0]  # First master node only
-  tags: upload-certs
-  tasks:
-
-    - name: Upload certificates for HA setup
-      command: kubeadm init phase upload-certs --upload-certs
-      register: upload_certs_result
-
-    - name: Extract certificate key
-      set_fact:
-        certificate_key: "{{ upload_certs_result.stdout_lines[-1] | trim }}"
-
-    - name: Display certificate key
-      debug:
-        msg: "Certificate key: {{ certificate_key }}"
-
-    - name: Generate control plane join command
-      command: kubeadm token create --print-join-command
-      register: join_command_result
-
-    - name: Set base join command
-      set_fact:
-        base_join_command: "{{ join_command_result.stdout }}"
-
-    - name: Create full control plane join command
-      set_fact:
-        control_plane_join_command: "{{ base_join_command }} --control-plane --certificate-key {{ certificate_key }}"
-
-    - name: Display control plane join command
-      debug:
-        msg: "Control plane join command: {{ control_plane_join_command }}"
-
-    - name: Save control plane join command to file
-      copy:
-        content: "{{ control_plane_join_command }}"
-        dest: /tmp/control_plane_join_command.txt
-
-    - name: Fetch control plane join command to local machine
-      fetch:
-        src: /tmp/control_plane_join_command.txt
-        dest: /tmp/control_plane_join_command.txt
-        flat: yes
-
-- name: Join Additional Control Plane Nodes
-  hosts: master-node[1:]  # All master nodes except the first one
+- name: Join Second Master Node
+  hosts: master-node[1:]  # 192.168.2.51
   become: yes
-  tags: join-control-plane
+  tags: join-master
   tasks:
-    - name: Copy control plane join command to target nodes
+    - name: Copy control plane join command to target node
       copy:
-        src: /tmp/control_plane_join_command.txt
-        dest: /tmp/control_plane_join_command.txt
+        src: /tmp/control_plane_join.txt
+        dest: /tmp/control_plane_join.txt
 
     - name: Read control plane join command
       slurp:
-        src: /tmp/control_plane_join_command.txt
-      register: join_command_file
+        src: /tmp/control_plane_join.txt
+      register: cp_join_command_file
 
-    - name: Set join command variable
+    - name: Set control plane join command variable
       set_fact:
-        join_command: "{{ join_command_file.content | b64decode | trim }}"
+        cp_join_command: "{{ cp_join_command_file.content | b64decode | trim }}"
 
-    - name: Display join command being executed
+    - name: Display control plane join command
       debug:
-        msg: "Executing: {{ join_command }}"
+        msg: "Executing: {{ cp_join_command }}"
 
     - name: Join control plane
-      shell: "{{ join_command }}"
-      register: join_result
-      ignore_errors: yes
+      shell: "{{ cp_join_command }}"
+      register: cp_join_result
 
-    - name: Display join result
+    - name: Display control plane join result
       debug:
-        var: join_result
+        var: cp_join_result
 
-    - name: Check if join was successful
+    - name: Check if control plane join was successful
       fail:
-        msg: "Failed to join control plane: {{ join_result.stderr }}"
-      when: join_result.rc != 0 and 'already exists' not in join_result.stderr
+        msg: "Failed to join control plane: {{ cp_join_result.stderr }}"
+      when: cp_join_result.rc != 0 and 'already exists' not in cp_join_result.stderr
 
-- name: Configure kubectl on Additional Control Plane Nodes
-  hosts: master-node[1:]  # All master nodes except the first one
-  tags: configure-kubectl
-  tasks:
     - name: Create .kube directory
-      become: yes
       file:
         path: /root/.kube
         state: directory
         mode: '0755'
 
     - name: Copy admin.conf to .kube/config
-      become: yes
       copy:
         src: /etc/kubernetes/admin.conf
         dest: /root/.kube/config
@@ -372,82 +750,266 @@
         group: root
         mode: '0644'
 
-    - name: Test kubectl access
-      command: kubectl cluster-info
-      register: cluster_info_result
+    - name: Test kubectl access on second master
+      command: kubectl get nodes
+      register: kubectl_test
 
-    - name: Display cluster info
+    - name: Display kubectl test result
       debug:
-        var: cluster_info_result.stdout_lines
+        var: kubectl_test.stdout_lines
 
-- name: Verify HA Control Plane Setup
-  hosts: master-node
-  tags: verify-ha
+- name: Join Worker Nodes
+  hosts: worker-node  # 192.168.3.50, 192.168.3.51, 192.168.4.50
+  become: yes
+  tags: join-workers
   tasks:
+    - name: Copy worker join command to target nodes
+      copy:
+        src: /tmp/worker_join.txt
+        dest: /tmp/worker_join.txt
+
+    - name: Read worker join command
+      slurp:
+        src: /tmp/worker_join.txt
+      register: worker_join_command_file
+
+    - name: Set worker join command variable
+      set_fact:
+        worker_join_command: "{{ worker_join_command_file.content | b64decode | trim }}"
+
+    - name: Display worker join command
+      debug:
+        msg: "Executing: {{ worker_join_command }}"
+
+    - name: Join worker nodes to cluster
+      shell: "{{ worker_join_command }}"
+      register: worker_join_result
+
+    - name: Display worker join result
+      debug:
+        var: worker_join_result
+
+    - name: Check if worker join was successful
+      fail:
+        msg: "Failed to join worker node: {{ worker_join_result.stderr }}"
+      when: worker_join_result.rc != 0 and 'already exists' not in worker_join_result.stderr
+
+- name: Configure kubectl Access on Worker Nodes (Optional)
+  hosts: worker-node
+  become: yes
+  tags: configure-workers
+  tasks:
+    - name: Create .kube directory for root on workers
+      file:
+        path: /root/.kube
+        state: directory
+        mode: '0755'
+      ignore_errors: yes
+
+    - name: Copy kubeconfig from first master to workers
+      delegate_to: "{{ groups['master-node'][0] }}"
+      slurp:
+        src: /etc/kubernetes/admin.conf
+      register: kubeconfig_content
+
+    - name: Write kubeconfig to workers
+      copy:
+        content: "{{ kubeconfig_content.content | b64decode }}"
+        dest: /root/.kube/config
+        mode: '0644'
+      ignore_errors: yes
+
+- name: Setup Load Balancer (Optional)
+  hosts: k8s-lb
+  become: yes
+  tags: setup-lb
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+
+    - name: Install HAProxy
+      apt:
+        name: haproxy
+        state: present
+
+    - name: Backup original HAProxy config
+      copy:
+        src: /etc/haproxy/haproxy.cfg
+        dest: /etc/haproxy/haproxy.cfg.backup
+        remote_src: yes
+      ignore_errors: yes
+
+    - name: Configure HAProxy for Kubernetes API
+      blockinfile:
+        path: /etc/haproxy/haproxy.cfg
+        block: |
+          
+          frontend kubernetes-frontend
+              bind *:6443
+              mode tcp
+              option tcplog
+              default_backend kubernetes-backend
+          
+          backend kubernetes-backend
+              mode tcp
+              balance roundrobin
+              option tcp-check
+              server master1 192.168.2.50:6443 check
+              server master2 192.168.2.51:6443 check
+        marker: "# {mark} KUBERNETES CONFIG"
+
+    - name: Enable and start HAProxy
+      systemd:
+        name: haproxy
+        enabled: yes
+        state: restarted
+
+    - name: Test HAProxy connectivity
+      uri:
+        url: "https://192.168.4.60:6443/api/v1"
+        method: GET
+        validate_certs: no
+        status_code: [200, 401, 403]
+      register: lb_test
+      ignore_errors: yes
+
+    - name: Display load balancer test result
+      debug:
+        msg: "Load Balancer connectivity: {{ 'SUCCESS' if lb_test.status in [200, 401, 403] else 'FAILED' }}"
+
+- name: Verify Complete Cluster
+  hosts: master-node[0]
+  become: yes
+  tags: verify
+  tasks:
+    - name: Wait for all nodes to be ready
+      command: kubectl wait --for=condition=Ready nodes --all --timeout=300s
+      ignore_errors: yes
+
+    - name: Get all nodes status
+      command: kubectl get nodes -o wide
+      register: all_nodes
+
+    - name: Display all nodes
+      debug:
+        msg: "{{ all_nodes.stdout_lines }}"
+
     - name: Get control plane nodes
       command: kubectl get nodes -l node-role.kubernetes.io/control-plane -o wide
       register: control_plane_nodes
-      run_once: true
 
     - name: Display control plane nodes
       debug:
-        var: control_plane_nodes.stdout_lines
-      run_once: true
+        msg: "{{ control_plane_nodes.stdout_lines }}"
 
-    - name: Get etcd pods
-      command: kubectl get pods -n kube-system -l component=etcd -o wide
-      register: etcd_pods
-      run_once: true
-
-    - name: Display etcd pods
-      debug:
-        var: etcd_pods.stdout_lines
-      run_once: true
-
-    - name: Check cluster health
-      command: kubectl get componentstatuses
-      register: component_status
-      run_once: true
-      ignore_errors: yes
-
-    - name: Display component status
-      debug:
-        var: component_status.stdout_lines
-      run_once: true
-      when: component_status.rc == 0
-
-    - name: Verify all nodes are ready
-      command: kubectl get nodes
-      register: all_nodes
-      run_once: true
-
-    - name: Display all nodes status
-      debug:
-        var: all_nodes.stdout_lines
-      run_once: true
-
-    - name: Check kube-system pods
-      command: kubectl get pods -n kube-system
+    - name: Get system pods status
+      command: kubectl get pods -n kube-system -o wide
       register: system_pods
-      run_once: true
 
     - name: Display system pods
       debug:
-        var: system_pods.stdout_lines
-      run_once: true
+        msg: "{{ system_pods.stdout_lines }}"
+
+    - name: Get Flannel pods status
+      command: kubectl get pods -n kube-flannel -o wide
+      register: flannel_pods
+      ignore_errors: yes
+
+    - name: Display Flannel pods
+      debug:
+        msg: "{{ flannel_pods.stdout_lines }}"
+      when: flannel_pods.rc == 0
+
+    - name: Test cluster connectivity
+      command: kubectl cluster-info
+      register: cluster_info
+
+    - name: Display cluster info
+      debug:
+        msg: "{{ cluster_info.stdout_lines }}"
+
+- name: Deploy Test Application
+  hosts: master-node[0]
+  become: yes
+  tags: test-app
+  tasks:
+    - name: Create test namespace
+      command: kubectl create namespace test-cluster
+      ignore_errors: yes
+
+    - name: Deploy test nginx pods
+      shell: |
+        kubectl create deployment nginx-test --image=nginx --replicas=5 -n test-cluster
+        kubectl expose deployment nginx-test --port=80 --type=NodePort -n test-cluster
+      ignore_errors: yes
+
+    - name: Wait for test pods to be ready
+      command: kubectl wait --for=condition=Ready pods -l app=nginx-test -n test-cluster --timeout=120s
+      ignore_errors: yes
+
+    - name: Get test application status
+      command: kubectl get all -n test-cluster -o wide
+      register: test_app_status
+      ignore_errors: yes
+
+    - name: Display test application
+      debug:
+        msg: "{{ test_app_status.stdout_lines }}"
+      when: test_app_status.rc == 0
+
+    - name: Get NodePort service details
+      command: kubectl get svc nginx-test -n test-cluster
+      register: nodeport_svc
+      ignore_errors: yes
+
+    - name: Display NodePort service
+      debug:
+        msg: "{{ nodeport_svc.stdout_lines }}"
+      when: nodeport_svc.rc == 0
 
 - name: Clean up temporary files
-  hosts: master-node
+  hosts: master-node,worker-node
   tags: cleanup
   tasks:
-    - name: Remove temporary join command file
+    - name: Remove temporary join files
       file:
-        path: /tmp/control_plane_join_command.txt
+        path: "{{ item }}"
         state: absent
+      loop:
+        - /tmp/control_plane_join.txt
+        - /tmp/worker_join.txt
 
-    - name: Remove local temporary file
+    - name: Remove local temporary files
       local_action:
         module: file
-        path: /tmp/control_plane_join_command.txt
+        path: "{{ item }}"
         state: absent
+      loop:
+        - /tmp/control_plane_join.txt
+        - /tmp/worker_join.txt
       run_once: true
+
+- name: Display Final Summary
+  hosts: master-node[0]
+  become: yes
+  tags: summary
+  tasks:
+    - name: Final cluster summary
+      debug:
+        msg:
+          - "=== KUBERNETES CLUSTER SETUP COMPLETED ==="
+          - "Master Nodes: 192.168.2.50 (primary), 192.168.2.51 (secondary)"
+          - "Worker Nodes: 192.168.3.50, 192.168.3.51, 192.168.4.50"
+          - "Load Balancer: 192.168.4.60:6443 (optional)"
+          - "CNI: Flannel"
+          - "Test app: nginx-test in test-cluster namespace"
+          - ""
+          - "Access cluster from any master node:"
+          - "kubectl get nodes"
+          - "kubectl get pods --all-namespaces"
+          - ""
+          - "=== CLUSTER READY FOR USE ==="
+
+
+
