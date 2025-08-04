@@ -19,13 +19,12 @@ provider "proxmox" {
 
 
 resource "proxmox_vm_qemu" "k8s-master" {
-    # ip 192.168.2.50
-  name        = "k8s-master"
+  name        = "k8s-master-${count.index + 1}" # Ensure unique names
   target_node = "proxmox"
-  vmid       = 300 + count.index
-  clone      = "ubuntu-template"
-  full_clone = true
-  count = var.master_count
+  vmid        = 300 + count.index # Ensure unique VM IDs
+  clone       = "ubuntu-template"
+  full_clone  = true
+  count       = var.master_count
 
   ciuser    = var.ci_user
   cipassword = var.ci_password

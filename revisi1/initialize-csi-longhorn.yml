@@ -1,0 +1,34 @@
+---
+- name: Install Longhorn CSI on Kubernetes
+  hosts: localhost
+  tasks:
+    - name: Download Longhorn Helm chart
+      shell: |
+        helm repo add longhorn https://charts.longhorn.io
+        helm repo update
+      register: helm_repo_update
+
+    - name: Install Longhorn using Helm
+      shell: |
+        helm install longhorn longhorn/longhorn \
+          --namespace longhorn-system \
+          --create-namespace \
+          --set csi.enabled=true
+      args:
+        executable: /bin/bash
+      register: helm_install
+
+    - name: Wait for Longhorn pods to be ready
+      shell: |
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=longhorn \
+          --namespace longhorn-system --timeout=300s
+      register: wait_pods_ready
+
+    - name: Verify Longhorn installation
+      shell: |
+        kubectl get pods -n longhorn-system
+      register: verify_installation
+
+    - name: Output installation result
+      debug:
+        var: verify_installation.stdout

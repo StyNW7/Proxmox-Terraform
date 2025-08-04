@@ -1,0 +1,10 @@
+# API proxmox
+proxmox_api_url ="http://ip:port/api2/json"
+proxmox_api_token_id = "tokenid"
+proxmox_api_token_secret = "tokensecret"
+
+# cloud-init configuration
+ci_user = "username"
+ci_password = "pw"
+ci_ssh_public_key = "~/.ssh/id_rsa.pub"
+ci_ssh_private_key = "~/.ssh/id_rsa"
