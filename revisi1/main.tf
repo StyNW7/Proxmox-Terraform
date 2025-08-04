@@ -22,7 +22,7 @@ resource "proxmox_vm_qemu" "k8s-master" {
     # ip 192.168.2.50
   name        = "k8s-master"
   target_node = "proxmox"
-  vmid       = 300
+  vmid       = 300 + count.index
   clone      = "ubuntu-template"
   full_clone = true
   count = var.master_count
@@ -76,7 +76,7 @@ resource "proxmox_vm_qemu" "k8s-workers-subnet-3" {
   count       = var.worker_count_subnet_3
   name        = "k8s-worker-subnet3-${count.index + 1}"
   target_node = "peoxmox"
-  vmid        = 301 + count.index
+  vmid        = 310 + count.index
   clone       = "ubuntu-template"
   full_clone  = true
 
@@ -129,7 +129,7 @@ resource "proxmox_vm_qemu" "k8s-workers-subnet-4" {
   count       = var.worker_count_subnet_4
   name        = "k8s-worker-subnet4-${count.index + 1}"
   target_node = "proxwrlb"
-  vmid        = 401 + count.index
+  vmid        = 320 + count.index
   clone       = "ubuntu-template"
   full_clone  = true
 
