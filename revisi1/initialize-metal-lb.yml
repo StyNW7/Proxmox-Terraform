@@ -1,0 +1,138 @@
+# - name: Install MetalLB Load Balancer
+#   hosts: master-node
+#   tags: install-metallb
+#   tasks:
+#   - name: Install MetalLB
+#     command: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
+
+#   - name: Wait for MetalLB to be ready
+#     command: kubectl wait --namespace metallb-system --for=condition=ready pod --selector=app=metallb --timeout=90s
+
+#   - name: Create MetalLB configuration
+#     copy:
+#       dest: /tmp/metallb-config.yaml
+#       content: |
+#         apiVersion: metallb.io/v1beta1
+#         kind: IPAddressPool
+#         metadata:
+#           name: default-pool
+#           namespace: metallb-system
+#         spec:
+#           addresses:
+#           - 192.168.61.200-192.168.61.210
+#         ---
+#         apiVersion: metallb.io/v1beta1
+#         kind: L2Advertisement
+#         metadata:
+#           name: default
+#           namespace: metallb-system
+#         spec:
+#           ipAddressPools:
+#           - default-pool
+
+#   - name: Apply MetalLB configuration
+#     command: kubectl apply -f /tmp/metallb-config.yaml
+
+#   - name: Display MetalLB status
+#     command: kubectl get pods -n metallb-system
+#     register: metallb_status
+
+#   - name: Show MetalLB pods
+#     debug:
+#       var: metallb_status.stdout_lines
+
+
+
+
+- name: Install MetalLB Load Balancer (Fixed)
+  hosts: master-node
+  tags: install-metallb
+  tasks:
+  - name: Install MetalLB
+    command: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
+
+  # Fix 1: Wait for controller specifically first
+  - name: Wait for MetalLB controller to be ready
+    command: kubectl wait --namespace metallb-system --for=condition=available --timeout=120s deployment/controller
+
+  # Fix 2: Check if memberlist secret exists and create if missing
+  - name: Check if memberlist secret exists
+    command: kubectl get secret memberlist -n metallb-system
+    register: memberlist_check
+    ignore_errors: yes
+
+  - name: Create memberlist secret if missing
+    command: kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+    when: memberlist_check.rc != 0
+
+  # Fix 3: Wait for speakers with longer timeout and better error handling
+  - name: Wait for MetalLB speaker pods to be ready
+    command: kubectl wait --namespace metallb-system --for=condition=ready pod --selector=component=speaker --timeout=180s
+    register: speaker_wait
+    ignore_errors: yes
+
+  # Fix 4: Restart speakers if they failed to start properly
+  - name: Restart speaker daemonset if pods failed
+    command: kubectl rollout restart daemonset/speaker -n metallb-system
+    when: speaker_wait.rc != 0
+
+  - name: Wait again for speakers after restart
+    command: kubectl wait --namespace metallb-system --for=condition=ready pod --selector=component=speaker --timeout=120s
+    when: speaker_wait.rc != 0
+    ignore_errors: yes
+
+  # Fix 5: Verify all pods before applying configuration
+  - name: Verify all MetalLB pods are running
+    command: kubectl get pods -n metallb-system
+    register: pod_status
+
+  - name: Display pod status for verification
+    debug:
+      var: pod_status.stdout_lines
+
+  - name: Create MetalLB configuration
+    copy:
+      dest: /tmp/metallb-config.yaml
+      content: |
+        apiVersion: metallb.io/v1beta1
+        kind: IPAddressPool
+        metadata:
+          name: default-pool
+          namespace: metallb-system
+        spec:
+          addresses:
+          - 192.168.61.200-192.168.61.210
+        ---
+        apiVersion: metallb.io/v1beta1
+        kind: L2Advertisement
+        metadata:
+          name: default
+          namespace: metallb-system
+        spec:
+          ipAddressPools:
+          - default-pool
+
+  # Fix 6: Only apply configuration if pods are ready
+  - name: Apply MetalLB configuration
+    command: kubectl apply -f /tmp/metallb-config.yaml
+    when: "'Running' in pod_status.stdout"
+
+  - name: Final status check
+    command: kubectl get pods -n metallb-system -o wide
+    register: final_status
+
+  - name: Show final MetalLB status
+    debug:
+      var: final_status.stdout_lines
+
+  # Fix 7: Provide troubleshooting info if still failing
+  - name: Show speaker logs if any pods are not running
+    command: kubectl logs -n metallb-system -l component=speaker --tail=20
+    register: speaker_logs
+    ignore_errors: yes
+    when: "'Running' not in pod_status.stdout"
+
+  - name: Display troubleshooting logs
+    debug:
+      var: speaker_logs.stdout_lines
+    when: speaker_logs is defined and speaker_logs.stdout is defined

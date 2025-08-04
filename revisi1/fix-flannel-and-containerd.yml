@@ -1,0 +1,61 @@
+- name: Fix Flannel CNI Issues
+  hosts: worker-node
+  become: yes
+  tags: fix-flannel
+  tasks:
+  - name: Check if Flannel subnet.env exists
+    stat:
+      path: /run/flannel/subnet.env
+    register: flannel_subnet
+
+  - name: Display Flannel subnet status
+    debug:
+      msg: "Flannel subnet.env exists: {{ flannel_subnet.stat.exists }}"
+
+  - name: Restart Flannel pods (delete to recreate)
+    command: kubectl delete pods -l app=flannel -n kube-flannel
+    delegate_to: "{{ groups['master-node'][0] }}"
+    run_once: true
+    when: not flannel_subnet.stat.exists
+
+  - name: Wait for Flannel pods to restart
+    command: kubectl wait --for=condition=Ready pods -l app=flannel -n kube-flannel --timeout=300s
+    delegate_to: "{{ groups['master-node'][0] }}"
+    run_once: true
+    ignore_errors: yes
+
+  - name: Restart kubelet service
+    systemd:
+      name: kubelet
+      state: restarted
+
+  - name: Wait for kubelet to be ready
+    pause:
+      seconds: 30
+
+
+- name: Fix Containerd Image Issues
+  hosts: worker-node
+  become: yes
+  tags: fix-containerd
+  tasks:
+  - name: Stop containerd
+    systemd:
+      name: containerd
+      state: stopped
+
+  - name: Clean containerd image cache
+    shell: |
+      rm -rf /var/lib/containerd/io.containerd.content.v1.content/blobs/sha256/*
+      rm -rf /var/lib/containerd/io.containerd.metadata.v1.bolt/meta.db
+    ignore_errors: yes
+
+  - name: Start containerd
+    systemd:
+      name: containerd
+      state: started
+
+  - name: Restart kubelet
+    systemd:
+      name: kubelet
+      state: restarted
