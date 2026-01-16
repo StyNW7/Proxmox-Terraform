@@ -124,5 +124,5 @@ Pull request sangat diterima. Untuk perubahan besar, mohon buat issue terlebih d
 
 ## 📬 Kontak
 
-Dikembangkan oleh: **Saputra Tanuwijaya**
+Dikembangkan oleh: **NW, NV, AT, NP, VW, KF**
 Untuk pertanyaan atau kolaborasi, silakan hubungi melalui email atau buka issue.
