@@ -1,53 +1,55 @@
 # 🛠️ Proxmox-Terraform
 
-**Proxmox-Terraform** adalah proyek otomatisasi infrastruktur menggunakan **Terraform** untuk membuat dan mengelola virtual machine (VM) di **Proxmox VE**, serta dukungan integrasi dengan **Ansible** untuk provisioning dan konfigurasi lebih lanjut.
+**Proxmox-Terraform** is an infrastructure automation project that uses **Terraform** to create and manage virtual machines (VMs) on **Proxmox VE**, with optional integration of **Ansible** for post-deployment provisioning and configuration.
 
 ---
 
-## 📦 Fitur
+## 📦 Features
 
-* ✅ Provisioning VM tunggal dan multi-VM di Proxmox menggunakan Terraform
-* 🔐 Peningkatan keamanan VM default
-* 🤖 Dukungan integrasi Ansible untuk konfigurasi otomatis pasca-deploy
-* 📄 Dokumentasi lengkap untuk memulai dengan cepat
+* ✅ Provision single and multiple VMs on Proxmox using Terraform
+* 🔐 Enhanced default VM security configurations
+* 🤖 Optional Ansible integration for automated post-deployment setup
+* 📄 Comprehensive documentation to help you get started quickly
 
 ---
 
-## 📁 Struktur Direktori
+## 📁 Directory Structure
 
 ```
 .
-├── doc-vm/           # Dokumentasi setup dan panduan keamanan VM
-├── multi-vm/         # Konfigurasi Terraform untuk multiple VMs + Ansible
-├── .gitignore        # File dan direktori yang diabaikan Git
-└── README.md         # Dokumentasi proyek ini
+├── doc-vm/           # VM setup documentation and security guides
+├── multi-vm/         # Terraform configs for multiple VMs + Ansible integration
+├── .gitignore        # Git ignored files and directories
+└── README.md         # Project documentation
 ```
 
 ---
 
-## 🚀 Prasyarat
+## 🚀 Prerequisites
 
-Sebelum menjalankan proyek ini, pastikan Anda sudah menginstal:
+Before running this project, make sure you have installed:
 
 * [Proxmox VE](https://www.proxmox.com/en/)
 * [Terraform](https://developer.hashicorp.com/terraform/downloads)
 * [Ansible](https://docs.ansible.com/ansible/latest/installation_guide/index.html)
-* Akses user ke Proxmox dengan API token/credential
+* A Proxmox user account with API token or credentials
 
 ---
 
-## ⚙️ Setup dan Penggunaan
+## ⚙️ Setup and Usage
 
-### 1. Clone repository ini:
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/username/Proxmox-Terraform.git
 cd Proxmox-Terraform
 ```
 
-### 2. Konfigurasi akses ke Proxmox
+---
 
-Di dalam file `terraform.tfvars` atau `variables.tf`, sesuaikan nilai berikut:
+### 2. Configure Proxmox access
+
+Edit the `terraform.tfvars` or `variables.tf` file and update the following values:
 
 ```hcl
 proxmox_url      = "https://your-proxmox-ip:8006/api2/json"
@@ -56,11 +58,11 @@ proxmox_password = "yourpassword"
 target_node      = "pve"
 ```
 
-> ⚠️ Gunakan credential yang aman atau gunakan environment variables dan file `.gitignore` untuk menyembunyikannya.
+> ⚠️ Use secure credentials. It is recommended to use environment variables and `.gitignore` to protect sensitive data.
 
 ---
 
-### 3. Inisialisasi dan jalankan Terraform
+### 3. Initialize and run Terraform
 
 ```bash
 terraform init
@@ -70,9 +72,9 @@ terraform apply
 
 ---
 
-### 4. Gunakan Ansible untuk provisioning (opsional)
+### 4. Use Ansible for provisioning (optional)
 
-Masuk ke direktori `multi-vm` (jika ingin menggunakan Ansible setelah provisioning):
+If you want to run Ansible after provisioning:
 
 ```bash
 cd multi-vm
@@ -81,48 +83,48 @@ ansible-playbook -i inventory.ini playbook.yml
 
 ---
 
-## 📝 Dokumentasi
+## 📝 Documentation
 
-Lihat folder `doc-vm/` untuk:
+See the `doc-vm/` directory for:
 
-* 📘 Dokumentasi setup awal
-* 🔐 Panduan pengamanan VM default
-* 🧪 Best practices untuk provisioning dan testing
+* 📘 Initial setup documentation
+* 🔐 Default VM hardening guide
+* 🧪 Best practices for provisioning and testing
 
 ---
 
-## 💡 Contoh Kasus Penggunaan
+## 💡 Use Cases
 
-* Infrastruktur lab virtual berbasis Proxmox
-* Deployment otomatis untuk VM Dev/Test
-* Kombinasi provisioning (Terraform) dan konfigurasi (Ansible)
+* Virtual lab infrastructure on Proxmox
+* Automated VM deployment for development and testing
+* Combined provisioning (Terraform) and configuration (Ansible) workflows
 
 ---
 
 ## 📌 TODO / Roadmap
 
-* [x] Dukungan multi-VM
-* [x] Integrasi Ansible
-* [ ] Dynamic inventory untuk Ansible
-* [ ] Tambah opsi backup VM via Proxmox API
-* [ ] Monitoring dan alert otomatis
+* [x] Multi-VM support
+* [x] Ansible integration
+* [ ] Dynamic inventory for Ansible
+* [ ] VM backup options via Proxmox API
+* [ ] Automated monitoring and alerting
 
 ---
 
-## 📄 Lisensi
+## 📄 License
 
-Lisensi: MIT License
-Lihat file [LICENSE](LICENSE) untuk detail lebih lanjut.
-
----
-
-## 🤝 Kontribusi
-
-Pull request sangat diterima. Untuk perubahan besar, mohon buat issue terlebih dahulu untuk didiskusikan.
+Licensed under the MIT License.
+See the [LICENSE](LICENSE) file for more details.
 
 ---
 
-## 📬 Kontak
+## 🤝 Contributing
 
-Dikembangkan oleh: **NW, NV, AT, NP, VW, KF**
-Untuk pertanyaan atau kolaborasi, silakan hubungi melalui email atau buka issue.
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to improve.
+
+---
+
+## 📬 Contact
+
+Developed by: **NW, NV, AT, NP, VW, KF**
+For questions or collaboration, feel free to reach out via email or open an issue.
